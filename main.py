@@ -32,17 +32,18 @@ class pantalla_inicio(QWidget):
     def __init__(self, stack):
         super().__init__()
 
-        layout = QVBoxLayout()
+        self.setFixedSize(800, 600)  # Tamaño fijo de la ventana
 
         # Título del juego
-        label_titulo = QLabel("🧬 Virus Spread Game")
-        label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label_titulo.setStyleSheet("font-size: 40px;")
+        self.label_titulo = QLabel("🧬 Virus Spread Game", self)
+        self.label_titulo.setStyleSheet("font-size: 40px;")
+        self.label_titulo.adjustSize()  # Ajusta el tamaño del QLabel al texto
+        self.label_titulo.move((self.width() - self.label_titulo.width()) // 2, 50)  # Centrado horizontal, 150px vertical
 
-        # Botón cuadrado
-        boton_jugar = QPushButton("JUGAR")
-        boton_jugar.setFixedSize(200, 100)  # Cuadrado
-        boton_jugar.setStyleSheet("""
+        # Botón cuadrado "JUGAR"
+        self.boton_jugar = QPushButton("JUGAR", self)
+        self.boton_jugar.setFixedSize(200, 100)
+        self.boton_jugar.setStyleSheet("""
             QPushButton {
                 font-size: 30px;
                 border: 2px solid black;
@@ -52,16 +53,8 @@ class pantalla_inicio(QWidget):
                 border: 2px solid blue;
             }
         """)
-        boton_jugar.clicked.connect(lambda: stack.setCurrentIndex(1))
-
-        layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(boton_jugar, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        # Espaciador para subir todo hacia arriba
-        espaciador = QSpacerItem(20, 200, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        layout.addSpacerItem(espaciador)
-
-        self.setLayout(layout)
+        self.boton_jugar.move((self.width() - 200) // 2, 300)  # Centrado horizontal, 300px vertical
+        self.boton_jugar.clicked.connect(lambda: stack.setCurrentIndex(1))
 
 class pantalla_saves(QWidget):
     def __init__(self, stack):
@@ -75,25 +68,61 @@ class pantalla_saves(QWidget):
 
         # Botón para volver atrás
         boton_retroceder = QPushButton("Volver atrás")
-        boton_retroceder.setFixedSize(100, 100)
-        boton_retroceder.setStyleSheet("font-size: 16px; border-radius: 10px;")
+        boton_retroceder.setFixedSize(100, 50)
         boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(0))
+        boton_retroceder.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                border: 2px solid black;
+                border-radius: 10px;
+            }
+            QPushButton:hover {
+                border: 2px solid blue;
+            }
+        """)
 
         # Ranuras
         boton_saves1 = QPushButton("RANURA 1")
-        boton_saves1.setFixedSize(100, 100)
-        boton_saves1.setStyleSheet("font-size: 16px; border-radius: 10px;")
+        boton_saves1.setFixedSize(200, 60)
         boton_saves1.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+        boton_saves1.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                border: 2px solid black;
+                border-radius: 10px;
+            }
+            QPushButton:hover {
+                border: 2px solid blue;
+            }
+        """)
 
         boton_saves2 = QPushButton("RANURA 2")
-        boton_saves2.setFixedSize(100, 100)
-        boton_saves2.setStyleSheet("font-size: 16px; border-radius: 10px;")
+        boton_saves2.setFixedSize(200, 60)
         boton_saves2.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+        boton_saves2.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                border: 2px solid black;
+                border-radius: 10px;
+            }
+            QPushButton:hover {
+                border: 2px solid blue;
+            }
+        """)
 
         boton_saves3 = QPushButton("RANURA 3")
-        boton_saves3.setFixedSize(100, 100)
-        boton_saves3.setStyleSheet("font-size: 16px; border-radius: 10px;")
+        boton_saves3.setFixedSize(200, 60)
         boton_saves3.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+        boton_saves3.setStyleSheet("""
+            QPushButton {
+                font-size: 16px; 
+                border: 2px solid black;
+                border-radius: 10px;
+            }
+            QPushButton:hover {
+                border: 2px solid blue;
+            }
+        """)
 
         layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -113,23 +142,24 @@ class pantalla_modo(QWidget):
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
+        self.setFixedSize(800, 600)
 
         layout = QVBoxLayout()
+
+        # Espaciador superior para centrar verticalmente
+        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+)
+
+        # Título
         label_titulo = QLabel("Seleccione el modo de juego")
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label_titulo.setStyleSheet("font-size: 24px;")
- 
-        # Botón para volver atrás
-        boton_retroceder = QPushButton("Volver atrás")
-        boton_retroceder.setFixedSize(100, 200)
-        boton_retroceder.setStyleSheet("font-size: 16px; border-radius: 10px;")
-        boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+        layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Ranuras
+        # Botón modo 1
         boton_modo1 = QPushButton("Jugador VS CPU")
         boton_modo1.setFixedSize(200, 100)
         boton_modo1.clicked.connect(lambda: self.stack.setCurrentIndex(3))
-        
         boton_modo1.setStyleSheet("""
             QPushButton {
                 font-size: 16px;
@@ -140,13 +170,12 @@ class pantalla_modo(QWidget):
                 border: 2px solid blue;
             }
         """)
+        layout.addWidget(boton_modo1, alignment=Qt.AlignmentFlag.AlignCenter)
 
-
-
+        # Botón modo 2
         boton_modo2 = QPushButton("Jugador VS Jugador")
         boton_modo2.setFixedSize(200, 100)
         boton_modo2.clicked.connect(lambda: self.stack.setCurrentIndex(3))
-
         boton_modo2.setStyleSheet("""
             QPushButton {
                 font-size: 16px;
@@ -157,18 +186,26 @@ class pantalla_modo(QWidget):
                 border: 2px solid blue;
             }
         """)
-        
-
-        layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        layout.addWidget(boton_modo1, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(boton_modo2, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
-      
+        # Espaciador intermedio
+        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-        espaciador = QSpacerItem(30, 200, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        layout.addSpacerItem(espaciador)
+        # Botón volver abajo del todo
+        boton_retroceder = QPushButton("Volver atrás")
+        boton_retroceder.setFixedSize(120, 50)
+        boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(1))
+        boton_retroceder.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                border: 2px solid black;
+                border-radius: 10px;
+            }
+            QPushButton:hover {
+                border: 2px solid blue;
+            }
+        """)
+        layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.setLayout(layout)
 
