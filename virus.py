@@ -1,3 +1,0 @@
-#Hola gent
-#Probando
-#hola?
