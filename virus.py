@@ -1,1 +1,1 @@
-"Hola gente ¿Será que esta picha sirve ya o que?"
+"Hola g ente ¿Será que esta picha sirve ya o que?"
