@@ -1,5 +1,5 @@
-matriz=[[1,2,3],
-        [4,5,6]]
+import random as r
+import time
 
 def imprima_matriz(m:list)->None:
     for y in m:
@@ -16,53 +16,101 @@ def crear_matriz(filas:int,columnas:int,elemento:any=None)->list:
         resultado.append(nueva_fila)
     return (resultado)
 
-def crear_matriz(filas:int,columnas:int,elemento:any=None)->list:
-    return [[elemento for _ in range (columnas)] for _ in range (filas)]
-
-
-def diagonal (m:list)->list:
-    if len(m)==0 and len(m)!=len(m[0]):
-        return []
-    else:
-        resultado=[]
-        cont=0
-        while cont<len(m):
-            resultado.append(m[cont][cont])
-            cont+=1
-        return (resultado)
-
-nueva_matriz=crear_matriz(10,10,0)
-
-import random as r
-
-def agregar_minas (m:list,porcentaje:int=10)->None:
+def agregar_virus(m: list, cantidad: int = 1, nivel: int= 1) -> None:
     """
-    Agrega minas a una matriz representada como una lista de listas.
-
-    Las minas se representan con el número 9 y se colocan aleatoriamente
-    en la matriz. El porcentaje de celdas que contendrán minas se especifica
-    como un parámetro.
+    Agrega 'cantidad' de virus (representados con el número 9)
+    en posiciones aleatorias de una matriz (lista de listas).
 
     Args:
-        m (list): La matriz en la que se agregarán las minas. Debe ser una lista
-                de listas donde cada sublista representa una fila.
-        porcentaje (int, opcional): El porcentaje de celdas que contendrán minas.
-                                    Por defecto es 10.
+        m (list): La matriz a modificar.
+        cantidad (int): Número de virus a colocar. Por defecto 10.
 
     Returns:
-        None: Esta función modifica la matriz proporcionada directamente.
+        None: La matriz es modificada directamente.
     """
-    filas=len(m)
-    columnas=len(m[0])
-    cont=(porcentaje*(filas*columnas))//100
-    while cont>0:
-        nf=r.randint(0,filas-1)
-        nc=r.randint(0,columnas-1)
-        if m[nf][nc]==0:
-            m[nf][nc]=9
-            cont-=1
+    filas = len(m)
+    columnas = len(m[0])
+    total_disponibles = [(f, c) for f in range(filas) for c in range(columnas) if m[f][c] == 0]
+
+    if nivel == 1:
+        cantidad = 1
+    elif nivel == 2:
+        cantidad =+1
+    elif nivel == 3:
+        cantidad += 2
+    else:
+        raise ValueError ("El nivel máximo es 3")
+
+    if cantidad > len(total_disponibles):
+        cantidad = len(total_disponibles)  # evita pasarse
+
+    posiciones = r.sample(total_disponibles, cantidad)
+
+    for f, c in posiciones:
+        m[f][c] = 9
+        
+        pass
+
+def movimientos(m: list) -> list:
+    filas = len(m)
+    columnas = len(m[0])
+    vida_virus = any(0 in fila for fila in m)
+    turno = 1
+
+    while vida_virus:
+        print(f"Turno {turno}:")
+        for fila in m:
+            print(" ".join(str(celda) for celda in fila))
+        print()
+        time.sleep(0.5)
+
+        # 1. Buscar todos los virus activos
+        virus_activados = [(f, c) for f in range(filas) for c in range(columnas) if m[f][c] == 3]
+
+        # 2. Seleccionar UN virus al azar
+        if not virus_activados:
+            break  # no hay más virus
+        f, c = r.choice(virus_activados)
+
+        # 3. Ver sus vecinos
+        vecinos = [
+            (f-1, c), (f+1, c), (f, c-1), (f, c+1)
+        ]
+        vecinos_validos = [
+            (nf, nc) for nf, nc in vecinos
+            if 0 <= nf < filas and 0 <= nc < columnas and m[nf][nc] == 0
+        ]
+
+        # 4. Si tiene a dónde ir, infecta una casilla
+        if vecinos_validos:
+            nuevo_f, nuevo_c = r.choice(vecinos_validos)
+            m[nuevo_f][nuevo_c] = 3
+            turno += 1
         else:
-            pass
+            # si ese virus no tiene a dónde ir, terminamos si ningún virus puede moverse
+            puede_moverse = False
+            for f, c in virus_activados:
+                vecinos = [
+                    (f-1, c), (f+1, c), (f, c-1), (f, c+1)
+                ]
+                if any(0 <= nf < filas and 0 <= nc < columnas and m[nf][nc] == 0 for nf, nc in vecinos):
+                    puede_moverse = True
+                    break
+            if not puede_moverse:
+                vida_virus = False
+
+    # Mostrar último turno
+    print(f"Turno {turno} (final):")
+    for fila in m:
+        print(" ".join(str(celda) for celda in fila))
+    print()
+
+    return m
+
+"""asignar_pistas(nueva_matriz)
+imprima_matriz(nueva_matriz)"""
+
+
 
 def es_mina (m:list,y:int,x:int)->bool:
     """
@@ -123,9 +171,3 @@ def asignar_pistas(m:list):
                 if es_mina(m,y+1,x+1):
                     vecinos+=1
                 m[y][x]=vecinos
-
-agregar_minas(nueva_matriz,porcentaje=20)
-asignar_pistas(nueva_matriz)
-
-imprima_matriz(nueva_matriz)
-
