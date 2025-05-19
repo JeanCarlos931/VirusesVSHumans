@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, 
 )
 from PyQt6.QtCore import Qt
+import time
 import sys
 
 class pantalla_juego(QWidget):
@@ -225,29 +226,36 @@ class pantalla_longitud(QWidget):
         boton_retroceder.setStyleSheet("font-size: 16px; border-radius: 10px;")
         boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(3))
 
-        self.label = QLabel("Escribe la longitud:")
+        self.label = QLabel("Escribe la longitud del mapa:")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.caja_texto = QLineEdit()
-        self.caja_texto.setPlaceholderText("Ejemplo: 8 ")  # Texto gris inicial
-        self.caja_texto.setMaxLength(2)  # Límite de caracteres
-        self.caja_texto.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.caja_texto_longitud = QLineEdit()
+        self.caja_texto_longitud.setPlaceholderText("Ejemplo: 8 ")  # Texto gris inicial
+        self.caja_texto_longitud.setMaxLength(2)  # Límite de caracteres
+        self.caja_texto_longitud.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.boton = QPushButton("Aceptar")
-        self.boton.clicked.connect(self.mostrar_nombre)
+        self.boton_empezar = QPushButton("Empezar")
+        self.boton_empezar.clicked.connect(self.mostrar_nombre)
 
         layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.label)
-        layout.addWidget(self.caja_texto)
-        layout.addWidget(self.boton)
+        layout.addWidget(self.caja_texto_longitud)
+        layout.addWidget(self.boton_empezar)
         espaciador = QSpacerItem(30, 200, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         layout.addSpacerItem(espaciador)
         self.setLayout(layout)
 
     def mostrar_nombre(self):
-        nombre = self.caja_texto.text()
-        self.label.setText(f"Hola, {nombre}!")  # Reemplaza el texto de la etiqueta
+        nombre = self.caja_texto_longitud.text()
+        self.label.setText(f"Se seleccionó longitud: {nombre}")  # Reemplaza el texto de la etiqueta
+        time.sleep(3)
+        self.label.setText(f"Procesando mapa.")  # Reemplaza el texto de la etiqueta
+        self.label.setText(f"Procesando mapa..")  # Reemplaza el texto de la etiqueta
+        self.label.setText(f"Procesando mapa...")  # Reemplaza el texto de la etiqueta
+        self.stack.setCurrentIndex(4)
+
+    
 
 app = QApplication(sys.argv)
 stack = QStackedWidget()
