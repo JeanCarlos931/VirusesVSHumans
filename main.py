@@ -351,7 +351,6 @@ class pantalla_saves(QWidget):
         
 
     def actualizar_ranuras(self):
-        # Limpiar el layout por si ya fue cargado antes
         for i in reversed(range(self.layout.count())):
             item = self.layout.itemAt(i)
             widget = item.widget()
@@ -369,10 +368,9 @@ class pantalla_saves(QWidget):
             datos = None
             try:
                 datos = cargar_partida(ranura)
-                # Forzar la actualización de la UI
                 QApplication.processEvents()  
             except Exception as e:
-                print(f"Error cargando partida: {e}")  # Depuración
+                print(f"Error cargando partida: {e}")  
 
             label_ranura = QLabel(f"RANURA {i}")
             label_ranura.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -380,7 +378,7 @@ class pantalla_saves(QWidget):
 
             if datos:
                 nivel = datos["nivel"]
-                longitud = len(datos["matriz"])  # Nueva línea para obtener tamaño
+                longitud = len(datos["matriz"])  
                 progreso = f"Nivel {nivel} - Tamaño: {longitud}x{longitud}"
             else:
                 progreso = "Sin partida guardada"
@@ -429,11 +427,10 @@ class pantalla_saves(QWidget):
         self.stack.setCurrentWidget(juego)
 
     def nueva_partida(self, ranura):
-        # Obtener la instancia existente de pantalla_longitud
         if os.path.exists(ranura+".bin"):
             os.remove(ranura+".bin")
             print(f"Archivo '{ranura+".bin"}' eliminado correctamente.")
-        pantalla_longitud_instance = self.stack.widget(3)  # Índice correcto
+        pantalla_longitud_instance = self.stack.widget(3) 
         pantalla_longitud_instance.ranura = ranura
         self.stack.setCurrentIndex(2)  
 
@@ -444,23 +441,25 @@ class pantalla_modo(QWidget):
         QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
     """
     def __init__(self, stack):
+        """Datos basicos de la pantalla
+
+        Args:
+            stack (int): Indice de la pantalla
+        """
         super().__init__()
         self.stack = stack
         self.setFixedSize(800, 600)
 
         layout = QVBoxLayout()
 
-        # Espaciador superior para centrar verticalmente
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 )
 
-        # Título
         label_titulo = QLabel("Seleccione el modo de juego")
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label_titulo.setStyleSheet("font-size: 24px;")
         layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Botón modo 1
         boton_modo1 = QPushButton("Jugador VS CPU")
         boton_modo1.setFixedSize(200, 100)
         boton_modo1.clicked.connect(lambda: self.stack.setCurrentIndex(3))
@@ -476,7 +475,6 @@ class pantalla_modo(QWidget):
         """)
         layout.addWidget(boton_modo1, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Botón modo 2
         boton_modo2 = QPushButton("Jugador VS Jugador")
         boton_modo2.setFixedSize(200, 100)
         boton_modo2.clicked.connect(lambda: self.stack.setCurrentIndex(5))
@@ -492,10 +490,8 @@ class pantalla_modo(QWidget):
         """)
         layout.addWidget(boton_modo2, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Espaciador intermedio
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-        # Botón volver abajo del todo
         boton_retroceder = QPushButton("Volver atrás")
         boton_retroceder.setFixedSize(120, 50)
         boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(1))
@@ -521,6 +517,11 @@ class pantalla_longitud(QWidget):
         QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
     """
     def __init__(self, stack):
+        """Datos basicos de la pantalla
+
+        Args:
+            stack (_type_): Indice de la pantalla
+        """
         super().__init__()
         self.stack = stack
         self.ranura = None
@@ -529,7 +530,6 @@ class pantalla_longitud(QWidget):
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label_titulo.setStyleSheet("font-size: 24px;")
 
-        # Botón para volver atrás
         boton_retroceder = QPushButton("Volver atrás")
         boton_retroceder.setFixedSize(100, 100)
         boton_retroceder.setStyleSheet("font-size: 16px; border-radius: 10px;")
@@ -539,12 +539,12 @@ class pantalla_longitud(QWidget):
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.caja_texto_longitud = QLineEdit()
-        self.caja_texto_longitud.setPlaceholderText("Ejemplo: 8 ")  # Texto gris inicial
-        self.caja_texto_longitud.setMaxLength(2)  # Límite de caracteres
+        self.caja_texto_longitud.setPlaceholderText("Ejemplo: 8 ") 
+        self.caja_texto_longitud.setMaxLength(2)  
         self.caja_texto_longitud.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.boton_empezar = QPushButton("Empezar")
-        self.boton_empezar.clicked.connect(self.mostrar_nombre)
+        self.boton_empezar.clicked.connect(self.mostrar_número)
 
         layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -555,7 +555,9 @@ class pantalla_longitud(QWidget):
         layout.addSpacerItem(espaciador)
         self.setLayout(layout)
 
-    def mostrar_nombre(self):
+    def mostrar_número(self):
+        """Muestra un mensaje estilo error si se introduce un dato invalido
+        """
         texto = self.caja_texto_longitud.text()
         try:
             longitud = int(texto)
@@ -566,18 +568,16 @@ class pantalla_longitud(QWidget):
             self.label.setText("Por favor, escribe un número válido.")
             return
 
-        # Elimina el widget anterior del juego si existe (evitar duplicados)
         if self.stack.count() > 4:
             widget_anterior = self.stack.widget(4)
             self.stack.removeWidget(widget_anterior)
             widget_anterior.deleteLater()
 
-        # Crear nueva pantalla de juego con longitud personalizada
         juego = pantalla_juego(
             longitud=longitud, 
             nivel=1, 
             stack=self.stack, 
-            nombre_guardado=self.ranura  # Usar la ranura almacenada
+            nombre_guardado=self.ranura
         )
         self.stack.addWidget(juego)
         self.stack.setCurrentWidget(juego)
