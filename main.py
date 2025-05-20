@@ -102,7 +102,7 @@ class pantalla_juego(QWidget):
                 self.turno = "fin"
                 QTimer.singleShot(1000, self.mostrar_pantalla_ganador)
                 return
-            virus_expandido = self.avanzar_virus_nivel4()
+            virus_expandido = self.avanzar_virus_nivel2()
             if not virus_expandido:
                 self.label_turno.setText("Jugador ganador!")
                 self.turno = "fin"
