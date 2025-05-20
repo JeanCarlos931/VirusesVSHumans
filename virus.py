@@ -110,10 +110,4 @@ def movimientos(m: list) -> list:
     return m
 
 
-matriz= [
-    [0,0,0,0,0,0,0,0,0],
-    [0,0,0,3,0,0,0,0,0],
-    [3,0,0,0,0,0,0,0,0]
-]
-movimientos(matriz)
 
