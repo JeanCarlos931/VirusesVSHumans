@@ -464,7 +464,7 @@ class pantalla_longitud(QWidget):
         self.stack.addWidget(juego)
         self.stack.setCurrentWidget(juego)
 
-    
+
 
 app = QApplication(sys.argv)
 stack = QStackedWidget()
