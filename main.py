@@ -11,16 +11,19 @@ from virus import agregar_virus, avanzar_virus, obtener_vecinos_validos
 import random as r
 
 class pantalla_juego(QWidget):
-    def __init__(self, longitud, nivel, stack):
+    def __init__(self, longitud, nivel, stack, nombre_guardado):
         super().__init__()
         self.setWindowTitle("Juego")
         self.stack = stack
         self.turno = "jugador"
         self.longitud = longitud
         self.nivel = nivel
+        self.nombre_guardado = nombre_guardado
+        
         self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
         self.virus_activos = []  # Para nivel 2: lista con posiciones de virus
         self.mover_virus_uno = False  # Flag para mover solo uno (nivel 2)
+        
 
         self.actualizar_virus_activos()
         self.matriz_botones = []
@@ -149,15 +152,15 @@ class pantalla_juego(QWidget):
             vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
             if vecinos:
                 virus_posibles.append((f, c))
-
+    
         if not virus_posibles:
             return False  # ninguno puede expandirse
-
+    
         # Seleccionamos uno al azar que puede avanzar
         f, c = r.choice(virus_posibles)
         vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
         nf, nc = r.choice(vecinos)
-        self.matriz_datos[nf][nc] = 3
+        self.matriz_datos[nf][nc] = 3  # CAMBIAR DE 2 A 3 AQUÍ
         self.actualizar_virus_activos()
         return True
     
@@ -181,16 +184,20 @@ class pantalla_juego(QWidget):
         self.turno = "jugador"
         self.label_turno.setText("Turno: Jugador")
         self.actualizar_tablero()
+    
     def salir_del_juego(self):
         try:
-            guardar_partida("ranura1", self.matriz_datos, self.nivel)
-            print("Partida guardada correctamente.")
+            matriz_actual = self.matriz_datos  # Ya tienes la matriz en self.matriz_datos
+            nivel_actual = self.nivel           # Ya tienes el nivel en self.nivel
+
+            guardar_partida(self.nombre_guardado, matriz_actual, nivel_actual)
+            print(f"Partida guardada en {self.nombre_guardado}.bin correctamente.")
         except Exception as e:
-            print (f"Error al guardar la partida: {e}")
-        if self.stack:
-            self.stack.setCurrentIndex(0)
-        else:
-            self.close()
+            print(f"Error al guardar la partida: {e}")
+
+        # Volver a pantalla_saves (índice 1 asumiendo que ahí está)
+        self.stack.setCurrentIndex(1)
+
 
     def mostrar_pantalla_ganador(self):
         ganador = pantallaGanador(self.stack)
@@ -223,6 +230,7 @@ class pantallaGanador(QWidget):
         # Opcional: eliminar esta pantalla para liberar memoria si se vuelve a jugar
         self.stack.removeWidget(self)
         self.deleteLater()
+
 class pantalla_inicio(QWidget):
     def __init__(self, stack):
         super().__init__()
@@ -258,6 +266,7 @@ class pantalla_saves(QWidget):
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.actualizar_ranuras()
+        
 
     def actualizar_ranuras(self):
         # Limpiar el layout por si ya fue cargado antes
@@ -320,7 +329,7 @@ class pantalla_saves(QWidget):
     def continuar_partida(self, ranura, datos):
         longitud = len(datos["matriz"])
         nivel = datos["nivel"]
-        juego = pantalla_juego(longitud=longitud, nivel=nivel, stack=self.stack)
+        juego = pantalla_juego(longitud=longitud, nivel=nivel, stack=self.stack, nombre_guardado=ranura)
         juego.matriz_datos = datos["matriz"]
         juego.actualizar_tablero()
 
@@ -333,7 +342,12 @@ class pantalla_saves(QWidget):
         self.stack.setCurrentWidget(juego)
 
     def nueva_partida(self, ranura):
-        self.stack.setCurrentIndex(3)  # Ir a pantalla de longitud (pantalla_longitud)
+        # Obtener la instancia existente de pantalla_longitud
+        pantalla_longitud_instance = self.stack.widget(3)
+        # Configurar la ranura en esa instancia
+        pantalla_longitud_instance.ranura = ranura
+        # Cambiar a la pantalla de longitud
+        self.stack.setCurrentIndex(2)
 
 class pantalla_modo(QWidget):
     def __init__(self, stack):
@@ -410,7 +424,7 @@ class pantalla_longitud(QWidget):
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
-
+        self.ranura = None
         layout = QVBoxLayout()
         label_titulo = QLabel("Seleccione la longitud del mapa")
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -460,7 +474,12 @@ class pantalla_longitud(QWidget):
             widget_anterior.deleteLater()
 
         # Crear nueva pantalla de juego con longitud personalizada
-        juego = pantalla_juego(longitud, nivel=1, stack=self.stack)
+        juego = pantalla_juego(
+            longitud=longitud, 
+            nivel=1, 
+            stack=self.stack, 
+            nombre_guardado=self.ranura  # Usar la ranura almacenada
+        )
         self.stack.addWidget(juego)
         self.stack.setCurrentWidget(juego)
 
