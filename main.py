@@ -44,8 +44,12 @@ class pantalla_juego(QWidget):
                 fila.append(boton)
             self.matriz_botones.append(fila)
 
-        layout_principal.addLayout(layout_tablero)
+        for col in range(longitud):
+            layout_tablero.setColumnStretch(longitud, 1)
 
+        contenedor_tablero = QWidget()
+        contenedor_tablero.setLayout(layout_tablero)
+        layout_principal.addWidget(contenedor_tablero, alignment=Qt.AlignmentFlag.AlignCenter)
         # --- Botón Salir ---
         boton_salir = QPushButton("Salir")
         boton_salir.setFixedSize(100, 40)
@@ -291,7 +295,7 @@ class pantalla_longitud(QWidget):
         texto = self.caja_texto_longitud.text()
         try:
             longitud = int(texto)
-            if longitud <= 0 or longitud > 20:
+            if longitud <= 3 or longitud > 20:
                 self.label.setText("Introduce un número entre 1 y 20.")
                 return
         except ValueError:
