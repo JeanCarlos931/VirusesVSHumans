@@ -3,201 +3,280 @@ from PyQt6.QtWidgets import (
     QGridLayout, QStackedWidget, QHBoxLayout, QSpacerItem, QSizePolicy, 
     QLineEdit,
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QPoint
 from guardador import guardar_partida, cargar_partida
-import time
 import sys
 from virus import agregar_virus, avanzar_virus, obtener_vecinos_validos
 import random as r
 
 class pantalla_juego(QWidget):
-    def __init__(self, longitud, nivel, stack, nombre_guardado):
+    def __init__(self, longitud, nivel, stack, nombre_guardado, modo_juego):
         super().__init__()
         self.setWindowTitle("Juego")
         self.stack = stack
-        self.turno = "jugador"
         self.longitud = longitud
         self.nivel = nivel
         self.nombre_guardado = nombre_guardado
+        self.modo_juego = modo_juego  # "single" o "multi"
         
-        self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
-        self.virus_activos = []  # Para nivel 2: lista con posiciones de virus
-        self.mover_virus_uno = False  # Flag para mover solo uno (nivel 2)
-        
+        # Configuración inicial según modo de juego
+        if self.modo_juego == "multi":
+            self.turno = "jugador_muro"
+            self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
+            # Posición inicial del virus en multijugador
+            self.matriz_datos[0][0] = 3
+            self.virus_activos = [(0, 0)]
+        else:
+            self.turno = "jugador"
+            self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
+            agregar_virus(self.matriz_datos, nivel=nivel)
+            self.virus_activos = [(f, c) for f in range(longitud) for c in range(longitud) if self.matriz_datos[f][c] == 3]
 
-        self.actualizar_virus_activos()
         self.matriz_botones = []
 
         # Crear layout general
         self.layout_general = QVBoxLayout()
 
-        # Texto nivel
-        self.label_nivel = QLabel(f"Nivel {nivel}")
-        self.label_nivel.setStyleSheet("font-size: 18px;")
-        self.label_turno = QLabel("Turno: Jugador")
-        self.label_turno.setStyleSheet("font-size: 18px;")
-
-        self.boton_salir = QPushButton("Salir")
-        self.boton_salir.clicked.connect(self.salir_del_juego)
-
+        # Barra superior
         layout_superior = QHBoxLayout()
-        layout_superior.addWidget(self.label_nivel)
+        
+        self.label_modo = QLabel()
+        self.actualizar_etiqueta_modo()
+        self.label_modo.setStyleSheet("font-size: 18px; color: #2c3e50;")
+        
+        self.label_turno = QLabel()
+        self.actualizar_etiqueta_turno()
+        self.label_turno.setStyleSheet("font-size: 18px; font-weight: bold;")
+        
+        self.boton_salir = QPushButton("Salir")
+        self.boton_salir.setStyleSheet("background-color: #e74c3c; color: white; padding: 8px;")
+        self.boton_salir.clicked.connect(self.salir_del_juego)
+        
+        layout_superior.addWidget(self.label_modo)
+        layout_superior.addStretch()
         layout_superior.addWidget(self.label_turno)
+        layout_superior.addStretch()
         layout_superior.addWidget(self.boton_salir)
         self.layout_general.addLayout(layout_superior)
 
         # Crear grilla
         self.grid = QGridLayout()
+        self.grid.setSpacing(5)
         for y in range(longitud):
             fila = []
             for x in range(longitud):
                 boton = QPushButton(" ")
-                boton.setFixedSize(40, 40)
-                boton.setStyleSheet("font-size: 24px;")
-                boton.clicked.connect(lambda _, px=x, py=y: self.colocar_muro(px, py))
+                boton.setFixedSize(50, 50)
+                boton.setStyleSheet("""
+                    QPushButton {
+                        font-size: 24px;
+                        background-color: #ecf0f1;
+                        border: 2px solid #bdc3c7;
+                        border-radius: 5px;
+                    }
+                    QPushButton:hover {
+                        background-color: #d0d3d4;
+                    }
+                """)
+                boton.clicked.connect(self.manejar_clic)
                 self.grid.addWidget(boton, y, x)
                 fila.append(boton)
             self.matriz_botones.append(fila)
 
         self.layout_general.addLayout(self.grid)
         self.setLayout(self.layout_general)
-
-        # Agregar virus inicial
-        agregar_virus(self.matriz_datos, nivel=nivel)
         self.actualizar_tablero()
+
+    def actualizar_etiqueta_modo(self):
+        if self.modo_juego == "multi":
+            self.label_modo.setText("Modo: Multijugador")
+        else:
+            self.label_modo.setText(f"Nivel: {self.nivel}")
+
+    def actualizar_etiqueta_turno(self):
+        textos = {
+            "jugador": "Turno: Jugador (Colocar muros)",
+            "jugador_muro": "Turno: Jugador Muros",
+            "jugador_virus": "Turno: Jugador Virus",
+            "virus": "Turno: Virus",
+            "fin": "Juego terminado"
+        }
+        self.label_turno.setText(textos.get(self.turno, ""))
+
+    def manejar_clic(self):
+        boton = self.sender()
+        index = self.grid.indexOf(boton)
+        posicion = self.grid.getItemPosition(index)
+        y, x = posicion[0], posicion[1]
+        
+        if self.turno == "fin":
+            return
+
+        if self.modo_juego == "multi":
+            if self.turno == "jugador_muro":
+                self.colocar_muro(x, y)
+            elif self.turno == "jugador_virus":
+                self.colocar_virus(x, y)
+        else:
+            if self.turno == "jugador":
+                self.colocar_muro(x, y)
 
     def colocar_muro(self, x, y):
-        if self.turno == "jugador" and self.matriz_datos[y][x] == 0:
+        if self.matriz_datos[y][x] == 0:
             self.matriz_datos[y][x] = 2
-            self.turno = "virus"
-            self.label_turno.setText("Turno: Virus")
             self.actualizar_tablero()
-            QTimer.singleShot(500, self.turno_virus)
+            
+            if self.modo_juego == "multi":
+                if not self.hay_movimientos_virus():
+                    self.fin_juego("¡Jugador Muros Gana!")
+                else:
+                    self.turno = "jugador_virus"
+            else:
+                self.turno = "virus"
+                QTimer.singleShot(500, self.turno_virus)
+            
+            self.actualizar_etiqueta_turno()
 
-    def actualizar_virus_activos(self):
-        # Actualiza la lista de posiciones donde hay virus (valor 3)
-        self.virus_activos = [(f, c) for f in range(self.longitud) for c in range(self.longitud) if self.matriz_datos[f][c] == 3]
+    def colocar_virus(self, x, y):
+        if self.matriz_datos[y][x] == 0:
+            # Verificar adyacencia a virus existente
+            vecinos = obtener_vecinos_validos(self.matriz_datos, y, x, distancia=1)
+            for (f, c) in vecinos:
+                if self.matriz_datos[f][c] == 3:
+                    self.matriz_datos[y][x] = 3
+                    self.virus_activos.append((y, x))
+                    self.actualizar_tablero()
+                    
+                    if not self.hay_movimientos_muro():
+                        self.fin_juego("¡Jugador Virus Gana!")
+                    else:
+                        self.turno = "jugador_muro"
+                    
+                    self.actualizar_etiqueta_turno()
+                    return
 
-    def turno_virus(self):
-        if self.nivel == 1:
-            virus_expandido = self.avanzar_virus_y_detectar()
-            if not virus_expandido:
-                self.label_turno.setText("Jugador ganador!")
-                self.turno = "fin"
-                QTimer.singleShot(1000, self.pasar_nivel2)
-                return
+    def hay_movimientos_muro(self):
+        return any(0 in fila for fila in self.matriz_datos)
 
-        elif self.nivel == 2:
-            virus_expandido = self.avanzar_virus_nivel2()
-            if not virus_expandido:
-                self.label_turno.setText("Jugador ganador!")
-                self.turno = "fin"
-                QTimer.singleShot(1000, self.pasar_nivel3)
-                return
-
-        elif self.nivel == 3:
-            # Nivel 3: ...
-            if not self.virus_activos:
-                self.label_turno.setText("Jugador ganador!")
-                self.turno = "fin"
-                QTimer.singleShot(1000, self.mostrar_pantalla_ganador)
-                return
-            virus_expandido = self.avanzar_virus_nivel4()
-            if not virus_expandido:
-                self.label_turno.setText("Jugador ganador!")
-                self.turno = "fin"
-                QTimer.singleShot(1000, self.mostrar_pantalla_ganador)
-                return
-        
-
-        self.turno = "jugador"
-        self.label_turno.setText("Turno: Jugador")
-        self.actualizar_tablero()
+    def hay_movimientos_virus(self):
+        for (f, c) in self.virus_activos:
+            if any(self.matriz_datos[nf][nc] == 0 for nf, nc in obtener_vecinos_validos(self.matriz_datos, f, c)):
+                return True
+        return False
 
     def actualizar_tablero(self):
         for y in range(self.longitud):
             for x in range(self.longitud):
                 valor = self.matriz_datos[y][x]
+                boton = self.matriz_botones[y][x]
                 if valor == 0:
-                    self.matriz_botones[y][x].setText(" ")
+                    boton.setText(" ")
+                    boton.setEnabled(True)
                 elif valor == 2:
-                    self.matriz_botones[y][x].setText("🧱")
+                    boton.setText("🧱")
+                    boton.setEnabled(False)
                 elif valor == 3:
-                    self.matriz_botones[y][x].setText("🦠")
-    
-    def avanzar_virus_y_detectar(self):
-        """
-        Avanza el virus (igual que antes) pero devuelve True si avanzó, False si no pudo.
-        """
-        filas = len(self.matriz_datos)
-        columnas = len(self.matriz_datos[0])
-        virus_activados = [(f, c) for f in range(filas) for c in range(columnas) if self.matriz_datos[f][c] == 3]
+                    boton.setText("🦠")
+                    boton.setEnabled(False)
+                
+                # Resaltar celdas disponibles para virus en multijugador
+                if self.modo_juego == "multi" and self.turno == "jugador_virus":
+                    if self.matriz_datos[y][x] == 0:
+                        vecinos = obtener_vecinos_validos(self.matriz_datos, y, x, distancia=1)
+                        if any(self.matriz_datos[f][c] == 3 for (f, c) in vecinos):
+                            boton.setStyleSheet("background-color: #f9e79f;")
+                        else:
+                            boton.setStyleSheet("background-color: #ecf0f1;")
+                    else:
+                        boton.setStyleSheet("background-color: #ecf0f1;")
+                else:
+                    boton.setStyleSheet("background-color: #ecf0f1;")
 
+    def turno_virus(self):
+        if self.modo_juego == "single":
+            if self.nivel == 1:
+                virus_expandido = self.avanzar_virus_normal()
+            elif self.nivel == 2:
+                virus_expandido = self.avanzar_virus_nivel2()
+            else:
+                virus_expandido = self.avanzar_virus_nivel3()
+            
+            if not virus_expandido:
+                self.fin_juego("¡Jugador Gana!")
+                return
+
+            self.turno = "jugador"
+            self.actualizar_etiqueta_turno()
+            self.actualizar_tablero()
+
+    def avanzar_virus_normal(self):
+        virus_activados = self.virus_activos.copy()
+        expandido = False
+        
         for f, c in virus_activados:
             vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
             if vecinos:
                 nf, nc = r.choice(vecinos)
                 self.matriz_datos[nf][nc] = 3
-                self.actualizar_virus_activos()
-                return True  # virus pudo expandirse
-        return False  # no pudo expandirse ningún virus
-    
+                self.virus_activos.append((nf, nc))
+                expandido = True
+        
+        return expandido
+
     def avanzar_virus_nivel2(self):
-        """
-        En nivel 2 hay 2 virus, se mueve sólo uno por turno:
-        selecciona aleatoriamente uno de los virus activos que pueda expandirse y lo mueve.
-        """
-        virus_posibles = []
-        for (f, c) in self.virus_activos:
-            vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
-            if vecinos:
-                virus_posibles.append((f, c))
-    
+        virus_posibles = [pos for pos in self.virus_activos if obtener_vecinos_validos(self.matriz_datos, pos[0], pos[1])]
         if not virus_posibles:
-            return False  # ninguno puede expandirse
-    
-        # Seleccionamos uno al azar que puede avanzar
+            return False
+        
         f, c = r.choice(virus_posibles)
         vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
         nf, nc = r.choice(vecinos)
-        self.matriz_datos[nf][nc] = 3  # CAMBIAR DE 2 A 3 AQUÍ
-        self.actualizar_virus_activos()
+        self.matriz_datos[nf][nc] = 3
+        self.virus_activos.append((nf, nc))
         return True
-    
-    def pasar_nivel2(self):
-        # Resetea matriz y prepara nivel 2 con 2 virus iniciales
-        self.nivel = 2
-        self.label_nivel.setText(f"Nivel {self.nivel}")
-        self.matriz_datos = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
-        agregar_virus(self.matriz_datos, cantidad=2, nivel=2)
-        self.actualizar_virus_activos()
-        self.turno = "jugador"
-        self.label_turno.setText("Turno: Jugador")
-        self.actualizar_tablero()
-    
-    def pasar_nivel3(self):
-        self.nivel = 3
-        self.label_nivel.setText(f"Nivel {self.nivel}")
-        self.matriz_datos = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
-        agregar_virus(self.matriz_datos, cantidad=2, nivel=3)  # Ajusta según virus que quieras poner en nivel 3
-        self.actualizar_virus_activos()
-        self.turno = "jugador"
-        self.label_turno.setText("Turno: Jugador")
-        self.actualizar_tablero()
-    
+
+    def fin_juego(self, mensaje):
+        self.turno = "fin"
+        self.label_turno.setText(mensaje)
+        self.label_turno.setStyleSheet("color: #27ae60; font-size: 24px; font-weight: bold;")
+        QTimer.singleShot(3000, self.volver_al_inicio)
+
+    def volver_al_inicio(self):
+        self.stack.setCurrentIndex(0)
+        self.deleteLater()
+
     def salir_del_juego(self):
-        try:
-            matriz_actual = self.matriz_datos  # Ya tienes la matriz en self.matriz_datos
-            nivel_actual = self.nivel           # Ya tienes el nivel en self.nivel
-
-            guardar_partida(self.nombre_guardado, matriz_actual, nivel_actual)
-            print(f"Partida guardada en {self.nombre_guardado}.bin correctamente.")
-        except Exception as e:
-            print(f"Error al guardar la partida: {e}")
-
-        # Volver a pantalla_saves (índice 1 asumiendo que ahí está)
+        if self.nombre_guardado:
+            try:
+                guardar_partida(self.nombre_guardado, {
+                    'matriz': self.matriz_datos,
+                    'nivel': self.nivel,
+                    'modo': self.modo_juego
+                })
+            except Exception as e:
+                print(f"Error guardando partida: {e}")
         self.stack.setCurrentIndex(1)
 
+    # Métodos existentes para niveles single player
+    def pasar_nivel2(self):
+        self.nivel = 2
+        self.label_modo.setText(f"Nivel: {self.nivel}")
+        self.matriz_datos = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
+        agregar_virus(self.matriz_datos, cantidad=2, nivel=2)
+        self.virus_activos = [(f, c) for f in range(self.longitud) for c in range(self.longitud) if self.matriz_datos[f][c] == 3]
+        self.turno = "jugador"
+        self.actualizar_etiqueta_turno()
+        self.actualizar_tablero()
+
+    def pasar_nivel3(self):
+        self.nivel = 3
+        self.label_modo.setText(f"Nivel: {self.nivel}")
+        self.matriz_datos = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
+        agregar_virus(self.matriz_datos, cantidad=3, nivel=3)
+        self.virus_activos = [(f, c) for f in range(self.longitud) for c in range(self.longitud) if self.matriz_datos[f][c] == 3]
+        self.turno = "jugador"
+        self.actualizar_etiqueta_turno()
+        self.actualizar_tablero()
 
     def mostrar_pantalla_ganador(self):
         ganador = pantallaGanador(self.stack)
@@ -386,6 +465,9 @@ class pantalla_saves(QWidget):
         # Cambiar a la pantalla de longitud
         self.stack.setCurrentIndex(2)
 
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QSpacerItem, QSizePolicy
+from PyQt6.QtCore import Qt
+
 class pantalla_modo(QWidget):
     def __init__(self, stack):
         super().__init__()
@@ -393,132 +475,136 @@ class pantalla_modo(QWidget):
         self.setFixedSize(800, 600)
 
         layout = QVBoxLayout()
+        layout.setContentsMargins(20, 20, 20, 20)
 
-        # Espaciador superior para centrar verticalmente
-        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-)
+        # Espaciador superior
+        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
         # Título
         label_titulo = QLabel("Seleccione el modo de juego")
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label_titulo.setStyleSheet("font-size: 24px;")
-        layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
+        label_titulo.setStyleSheet("font-size: 24px; font-weight: bold;")
+        layout.addWidget(label_titulo)
 
-        # Botón modo 1
-        boton_modo1 = QPushButton("Jugador VS CPU")
-        boton_modo1.setFixedSize(200, 100)
-        boton_modo1.clicked.connect(lambda: self.stack.setCurrentIndex(3))
-        boton_modo1.setStyleSheet("""
-            QPushButton {
-                font-size: 16px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
-        layout.addWidget(boton_modo1, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Botones de modo
+        boton_modo_single = QPushButton("Jugador VS CPU")
+        boton_modo_multi = QPushButton("Jugador VS Jugador (Multijugador)")
+        
+        for boton in [boton_modo_single, boton_modo_multi]:
+            boton.setFixedSize(300, 80)
+            boton.setStyleSheet("""
+                QPushButton {
+                    font-size: 18px;
+                    border: 2px solid #2c3e50;
+                    border-radius: 10px;
+                    padding: 10px;
+                    background-color: #3498db;
+                    color: white;
+                }
+                QPushButton:hover {
+                    background-color: #2980b9;
+                }
+            """)
+            layout.addWidget(boton, alignment=Qt.AlignmentFlag.AlignCenter)
+            layout.addSpacing(20)
 
-        # Botón modo 2
-        boton_modo2 = QPushButton("Jugador VS Jugador")
-        boton_modo2.setFixedSize(200, 100)
-        boton_modo2.clicked.connect(lambda: self.stack.setCurrentIndex(3))
-        boton_modo2.setStyleSheet("""
-            QPushButton {
-                font-size: 16px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
-        layout.addWidget(boton_modo2, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Configurar acciones
+        boton_modo_single.clicked.connect(lambda: self.seleccionar_modo("single"))
+        boton_modo_multi.clicked.connect(lambda: self.seleccionar_modo("multi"))
 
-        # Espaciador intermedio
+        # Espaciador inferior
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-        # Botón volver abajo del todo
-        boton_retroceder = QPushButton("Volver atrás")
-        boton_retroceder.setFixedSize(120, 50)
-        boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(1))
-        boton_retroceder.setStyleSheet("""
-            QPushButton {
-                font-size: 12px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
-        layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Botón volver
+        boton_volver = QPushButton("Volver")
+        boton_volver.setFixedSize(120, 40)
+        boton_volver.setStyleSheet("font-size: 14px;")
+        boton_volver.clicked.connect(lambda: self.stack.setCurrentIndex(1))
+        layout.addWidget(boton_volver, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.setLayout(layout)
+
+    def seleccionar_modo(self, modo):
+        pantalla_longitud = self.stack.widget(3)
+        pantalla_longitud.modo_juego = modo
+        self.stack.setCurrentIndex(3)
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QSpacerItem, QSizePolicy
+from PyQt6.QtCore import Qt
 
 class pantalla_longitud(QWidget):
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
+        self.modo_juego = "single"  # Valor por defecto
         self.ranura = None
+
         layout = QVBoxLayout()
-        label_titulo = QLabel("Seleccione la longitud del mapa")
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Título
+        label_titulo = QLabel("Configuración de partida")
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label_titulo.setStyleSheet("font-size: 24px;")
+        label_titulo.setStyleSheet("font-size: 24px; font-weight: bold;")
+        layout.addWidget(label_titulo)
 
-        # Botón para volver atrás
-        boton_retroceder = QPushButton("Volver atrás")
-        boton_retroceder.setFixedSize(100, 100)
-        boton_retroceder.setStyleSheet("font-size: 16px; border-radius: 10px;")
-        boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(3))
+        # Instrucciones
+        self.label_instruccion = QLabel("Longitud del tablero (4-20):")
+        self.label_instruccion.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.label_instruccion)
 
-        self.label = QLabel("Escribe la longitud del mapa:")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Campo de texto
+        self.input_longitud = QLineEdit()
+        self.input_longitud.setPlaceholderText("Ejemplo: 8")
+        self.input_longitud.setMaxLength(2)
+        self.input_longitud.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.input_longitud.setStyleSheet("font-size: 16px; padding: 5px;")
+        self.input_longitud.setFixedWidth(100)
+        layout.addWidget(self.input_longitud, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.caja_texto_longitud = QLineEdit()
-        self.caja_texto_longitud.setPlaceholderText("Ejemplo: 8 ")  # Texto gris inicial
-        self.caja_texto_longitud.setMaxLength(2)  # Límite de caracteres
-        self.caja_texto_longitud.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Botón empezar
+        boton_empezar = QPushButton("Comenzar partida")
+        boton_empezar.setStyleSheet("font-size: 16px; padding: 8px;")
+        boton_empezar.clicked.connect(self.iniciar_juego)
+        layout.addWidget(boton_empezar, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.boton_empezar = QPushButton("Empezar")
-        self.boton_empezar.clicked.connect(self.mostrar_nombre)
+        # Espaciador
+        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
 
-        layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.label)
-        layout.addWidget(self.caja_texto_longitud)
-        layout.addWidget(self.boton_empezar)
-        espaciador = QSpacerItem(30, 200, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        layout.addSpacerItem(espaciador)
+        # Botón volver
+        boton_volver = QPushButton("Volver")
+        boton_volver.setFixedSize(100, 40)
+        boton_volver.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+        layout.addWidget(boton_volver, alignment=Qt.AlignmentFlag.AlignCenter)
+
         self.setLayout(layout)
 
-    def mostrar_nombre(self):
-        texto = self.caja_texto_longitud.text()
+    def iniciar_juego(self):
         try:
-            longitud = int(texto)
-            if longitud <= 3 or longitud > 20:
-                self.label.setText("Introduce un número entre 4 y 20.")
-                return
+            longitud = int(self.input_longitud.text())
+            if not 4 <= longitud <= 20:
+                raise ValueError
         except ValueError:
-            self.label.setText("Por favor, escribe un número válido.")
+            self.label_instruccion.setText("¡Longitud inválida! Debe ser entre 4 y 20")
+            self.label_instruccion.setStyleSheet("color: red;")
             return
 
-        # Elimina el widget anterior del juego si existe (evitar duplicados)
-        if self.stack.count() > 4:
-            widget_anterior = self.stack.widget(4)
-            self.stack.removeWidget(widget_anterior)
-            widget_anterior.deleteLater()
+        # Limpiar partidas anteriores en la misma posición de stack
+        while self.stack.count() > 4:
+            old_widget = self.stack.widget(4)
+            self.stack.removeWidget(old_widget)
+            old_widget.deleteLater()
 
-        # Crear nueva pantalla de juego con longitud personalizada
-        juego = pantalla_juego(
-            longitud=longitud, 
-            nivel=1, 
-            stack=self.stack, 
-            nombre_guardado=self.ranura  # Usar la ranura almacenada
+        nueva_partida = pantalla_juego(
+            longitud=longitud,
+            nivel=1,
+            stack=self.stack,
+            nombre_guardado=self.ranura,
+            modo_juego=self.modo_juego
         )
-        self.stack.addWidget(juego)
-        self.stack.setCurrentWidget(juego)
+        
+        self.stack.addWidget(nueva_partida)
+        self.stack.setCurrentIndex(4)
 
     
 
