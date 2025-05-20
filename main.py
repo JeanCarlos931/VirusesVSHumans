@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from guardador import guardar_partida, cargar_partida
-import time
+import os
 import sys
 from virus import agregar_virus, avanzar_virus, obtener_vecinos_validos
 import random as r
@@ -75,8 +75,8 @@ class pantalla_juego(QWidget):
             QTimer.singleShot(500, self.turno_virus)
 
     def actualizar_virus_activos(self):
-        # Actualiza la lista de posiciones donde hay virus (valor 3)
-        self.virus_activos = [(f, c) for f in range(self.longitud) for c in range(self.longitud) if self.matriz_datos[f][c] == 3]
+        # Actualiza la lista de posiciones donde hay virus (valor 2)
+        self.virus_activos = [(f, c) for f in range(self.longitud) for c in range(self.longitud) if self.matriz_datos[f][c] == 2]
 
     def turno_virus(self):
         if self.nivel == 1:
@@ -122,7 +122,7 @@ class pantalla_juego(QWidget):
                     self.matriz_botones[y][x].setText(" ")
                 elif valor == 2:
                     self.matriz_botones[y][x].setText("🧱")
-                elif valor == 3:
+                elif valor == 1:
                     self.matriz_botones[y][x].setText("🦠")
     
     def avanzar_virus_y_detectar(self):
@@ -131,13 +131,13 @@ class pantalla_juego(QWidget):
         """
         filas = len(self.matriz_datos)
         columnas = len(self.matriz_datos[0])
-        virus_activados = [(f, c) for f in range(filas) for c in range(columnas) if self.matriz_datos[f][c] == 3]
+        virus_activados = [(f, c) for f in range(filas) for c in range(columnas) if self.matriz_datos[f][c] == 1]
 
         for f, c in virus_activados:
             vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
             if vecinos:
                 nf, nc = r.choice(vecinos)
-                self.matriz_datos[nf][nc] = 3
+                self.matriz_datos[nf][nc] = 1
                 self.actualizar_virus_activos()
                 return True  # virus pudo expandirse
         return False  # no pudo expandirse ningún virus
@@ -160,7 +160,7 @@ class pantalla_juego(QWidget):
         f, c = r.choice(virus_posibles)
         vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
         nf, nc = r.choice(vecinos)
-        self.matriz_datos[nf][nc] = 3  # CAMBIAR DE 2 A 3 AQUÍ
+        self.matriz_datos[nf][nc] = 1  # CAMBIAR DE 2 A 3 AQUÍ
         self.actualizar_virus_activos()
         return True
     
@@ -189,14 +189,15 @@ class pantalla_juego(QWidget):
         try:
             matriz_actual = self.matriz_datos  # Ya tienes la matriz en self.matriz_datos
             nivel_actual = self.nivel           # Ya tienes el nivel en self.nivel
+            longitud_actual = self.longitud
 
-            guardar_partida(self.nombre_guardado, matriz_actual, nivel_actual)
+            guardar_partida(self.nombre_guardado, nivel_actual, longitud_actual, matriz_actual)
             print(f"Partida guardada en {self.nombre_guardado}.bin correctamente.")
         except Exception as e:
             print(f"Error al guardar la partida: {e}")
 
         # Volver a pantalla_saves (índice 1 asumiendo que ahí está)
-        self.stack.setCurrentIndex(1)
+        QApplication.quit()
 
 
     def mostrar_pantalla_ganador(self):
@@ -287,8 +288,10 @@ class pantalla_saves(QWidget):
             datos = None
             try:
                 datos = cargar_partida(ranura)
-            except:
-                pass
+                # Forzar la actualización de la UI
+                QApplication.processEvents()  
+            except Exception as e:
+                print(f"Error cargando partida: {e}")  # Depuración
 
             label_ranura = QLabel(f"RANURA {i}")
             label_ranura.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -296,7 +299,8 @@ class pantalla_saves(QWidget):
 
             if datos:
                 nivel = datos["nivel"]
-                progreso = f"Nivel {nivel}"
+                longitud = len(datos["matriz"])  # Nueva línea para obtener tamaño
+                progreso = f"Nivel {nivel} - Tamaño: {longitud}x{longitud}"
             else:
                 progreso = "Sin partida guardada"
 
@@ -325,13 +329,15 @@ class pantalla_saves(QWidget):
         boton_retroceder.setFixedSize(120, 50)
         boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(0))
         self.layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
-
+    
     def continuar_partida(self, ranura, datos):
         longitud = len(datos["matriz"])
         nivel = datos["nivel"]
         juego = pantalla_juego(longitud=longitud, nivel=nivel, stack=self.stack, nombre_guardado=ranura)
         juego.matriz_datos = datos["matriz"]
+        juego.actualizar_virus_activos()
         juego.actualizar_tablero()
+        
 
         if self.stack.count() > 4:
             viejo = self.stack.widget(4)
@@ -343,11 +349,12 @@ class pantalla_saves(QWidget):
 
     def nueva_partida(self, ranura):
         # Obtener la instancia existente de pantalla_longitud
-        pantalla_longitud_instance = self.stack.widget(3)
-        # Configurar la ranura en esa instancia
+        if os.path.exists(ranura+".bin"):
+            os.remove(ranura+".bin")
+            print(f"Archivo '{ranura+".bin"}' eliminado correctamente.")
+        pantalla_longitud_instance = self.stack.widget(3)  # Índice correcto
         pantalla_longitud_instance.ranura = ranura
-        # Cambiar a la pantalla de longitud
-        self.stack.setCurrentIndex(2)
+        self.stack.setCurrentIndex(2)  
 
 class pantalla_modo(QWidget):
     def __init__(self, stack):

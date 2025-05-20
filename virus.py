@@ -32,7 +32,7 @@ def agregar_virus(m: list, cantidad: int = 1, nivel: int= 1) -> None:
     posiciones = r.sample(total_disponibles, cantidad)
 
     for f, c in posiciones:
-        m[f][c] = 3
+        m[f][c] = 1
         
         pass
 
