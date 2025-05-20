@@ -8,26 +8,67 @@ import time
 import sys
 
 class pantalla_juego(QWidget):
-    def __init__(self):
+    def __init__(self, longitud, nivel=1, stack=None):
         super().__init__()
         self.setWindowTitle("Juego")
         self.matriz_botones = []
-        layout = QGridLayout()
-        for y in range(10):
+        self.turno_actual = "Jugador"
+        self.stack = stack  # Para poder regresar al menú si se usa
+
+        # --- Layout principal vertical ---
+        layout_principal = QVBoxLayout()
+
+        # Texto del nivel
+        self.label_nivel = QLabel(f"🌟 Nivel: {nivel}")
+        self.label_nivel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_nivel.setStyleSheet("font-size: 20px;")
+        layout_principal.addWidget(self.label_nivel)
+
+        # Texto del turno
+        self.label_turno = QLabel(f"Turno: {self.turno_actual}")
+        self.label_turno.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label_turno.setStyleSheet("font-size: 18px;")
+        layout_principal.addWidget(self.label_turno)
+
+        # --- Tablero ---
+        layout_tablero = QGridLayout()
+
+        for y in range(longitud):
             fila = []
-            for x in range(15):
+            for x in range(longitud):
                 boton = QPushButton("🧱")
                 boton.setFixedSize(50, 50)
                 boton.setStyleSheet("font-size: 40px;")
                 boton.clicked.connect(lambda _, px=x, py=y: self.saludar(px, py))
-                layout.addWidget(boton, y, x)
+                layout_tablero.addWidget(boton, y, x)
                 fila.append(boton)
             self.matriz_botones.append(fila)
-        self.setLayout(layout)
+
+        layout_principal.addLayout(layout_tablero)
+
+        # --- Botón Salir ---
+        boton_salir = QPushButton("Salir")
+        boton_salir.setFixedSize(100, 40)
+        boton_salir.setStyleSheet("font-size: 14px; border-radius: 8px;")
+        boton_salir.clicked.connect(self.salir_del_juego)
+        layout_principal.addWidget(boton_salir, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.setLayout(layout_principal)
 
     def saludar(self, x, y):
         print(f"X:{x} Y:{y}")
         self.matriz_botones[y][x].setText("🦠")
+
+        # Cambiar el turno
+        self.turno_actual = "Virus" if self.turno_actual == "Jugador" else "Jugador"
+        self.label_turno.setText(f"Turno: {self.turno_actual}")
+
+    def salir_del_juego(self):
+        if self.stack:
+            self.stack.setCurrentIndex(0)  # Vuelve al menú principal
+        else:
+            self.close()  # Cierra la ventana si no hay stack
+
 
 class pantalla_inicio(QWidget):
     def __init__(self, stack):
@@ -247,13 +288,26 @@ class pantalla_longitud(QWidget):
         self.setLayout(layout)
 
     def mostrar_nombre(self):
-        nombre = self.caja_texto_longitud.text()
-        self.label.setText(f"Se seleccionó longitud: {nombre}")  # Reemplaza el texto de la etiqueta
-        time.sleep(3)
-        self.label.setText(f"Procesando mapa.")  # Reemplaza el texto de la etiqueta
-        self.label.setText(f"Procesando mapa..")  # Reemplaza el texto de la etiqueta
-        self.label.setText(f"Procesando mapa...")  # Reemplaza el texto de la etiqueta
-        self.stack.setCurrentIndex(4)
+        texto = self.caja_texto_longitud.text()
+        try:
+            longitud = int(texto)
+            if longitud <= 0 or longitud > 20:
+                self.label.setText("Introduce un número entre 1 y 20.")
+                return
+        except ValueError:
+            self.label.setText("Por favor, escribe un número válido.")
+            return
+
+        # Elimina el widget anterior del juego si existe (evitar duplicados)
+        if self.stack.count() > 4:
+            widget_anterior = self.stack.widget(4)
+            self.stack.removeWidget(widget_anterior)
+            widget_anterior.deleteLater()
+
+        # Crear nueva pantalla de juego con longitud personalizada
+        juego = pantalla_juego(longitud, nivel=1, stack=self.stack)
+        self.stack.addWidget(juego)
+        self.stack.setCurrentWidget(juego)
 
     
 
@@ -264,13 +318,11 @@ widget_inicio = pantalla_inicio(stack)
 widget_ranuras = pantalla_saves(stack)
 widget_modo = pantalla_modo(stack)
 widget_longitud = pantalla_longitud(stack)
-widget_juego = pantalla_juego()
 
 stack.addWidget(widget_inicio)  # índice 0
 stack.addWidget(widget_ranuras)  # índice 1
 stack.addWidget(widget_modo)  # índice 2
 stack.addWidget(widget_longitud)  # índice 3
-stack.addWidget(widget_juego)  # índice 4
 
 stack.setCurrentIndex(0)  # Pantalla inicial
 stack.show()
