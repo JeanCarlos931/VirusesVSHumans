@@ -1,17 +1,31 @@
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QLabel, QVBoxLayout,
-    QGridLayout, QStackedWidget, QHBoxLayout, QSpacerItem, QSizePolicy, 
-    QLineEdit,
-)
+    QApplication, QWidget, QPushButton,
+    QLabel, QVBoxLayout, QGridLayout, 
+    QStackedWidget, QHBoxLayout, QSpacerItem, 
+    QSizePolicy, QLineEdit, QMessageBox
+    )
 from PyQt6.QtCore import Qt, QTimer
 from guardador import guardar_partida, cargar_partida
-import os
-import sys
 from virus import agregar_virus, avanzar_virus, obtener_vecinos_validos
 import random as r
+import os
+import sys
 
 class pantalla_juego(QWidget):
+    """Ventana del video juego
+
+    Args:
+        QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
+    """
     def __init__(self, longitud, nivel, stack, nombre_guardado):
+        """Caracteristicas basicas de la clase
+
+        Args:
+            longitud (int): La longitud de la matriz Actual
+            nivel (int): El nivel actual 
+            stack (int): El indice de la pantalla
+            nombre_guardado (str): Nombre de la ranura seleccionada
+        """
         super().__init__()
         self.setWindowTitle("Juego")
         self.stack = stack
@@ -21,17 +35,14 @@ class pantalla_juego(QWidget):
         self.nombre_guardado = nombre_guardado
         
         self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
-        self.virus_activos = []  # Para nivel 2: lista con posiciones de virus
-        self.mover_virus_uno = False  # Flag para mover solo uno (nivel 2)
-        
+        self.virus_activos = []  
+        self.mover_virus_uno = False 
 
         self.actualizar_virus_activos()
         self.matriz_botones = []
 
-        # Crear layout general
         self.layout_general = QVBoxLayout()
 
-        # Texto nivel
         self.label_nivel = QLabel(f"Nivel {nivel}")
         self.label_nivel.setStyleSheet("font-size: 18px;")
         self.label_turno = QLabel("Turno: Jugador")
@@ -46,7 +57,6 @@ class pantalla_juego(QWidget):
         layout_superior.addWidget(self.boton_salir)
         self.layout_general.addLayout(layout_superior)
 
-        # Crear grilla
         self.grid = QGridLayout()
         for y in range(longitud):
             fila = []
@@ -62,11 +72,16 @@ class pantalla_juego(QWidget):
         self.layout_general.addLayout(self.grid)
         self.setLayout(self.layout_general)
 
-        # Agregar virus inicial
         agregar_virus(self.matriz_datos, nivel=nivel)
         self.actualizar_tablero()
 
     def colocar_muro(self, x, y):
+        """Verifica la posición y coloca un muro en la matriz interna del codigo
+
+        Args:
+            x (_type_): Ubicacion x del botón seleccionado en la ventana
+            y (_type_): Ubicacion y del botón seleccionado en la ventana
+        """
         if self.turno == "jugador" and self.matriz_datos[y][x] == 0:
             self.matriz_datos[y][x] = 2
             self.turno = "virus"
@@ -75,10 +90,13 @@ class pantalla_juego(QWidget):
             QTimer.singleShot(500, self.turno_virus)
 
     def actualizar_virus_activos(self):
-        # Actualiza la lista de posiciones donde hay virus (valor 2)
+        """ Actualiza la lista de posiciones donde hay virus
+        """
         self.virus_activos = [(f, c) for f in range(self.longitud) for c in range(self.longitud) if self.matriz_datos[f][c] == 2]
 
     def turno_virus(self):
+        """Realiza la acción del virus dependiendo del nivel, además, el nivel 3 aprovecha la funcionalidad del nivel 2 (avanzar_virus_nivel2)
+        """
         if self.nivel == 1:
             virus_expandido = self.avanzar_virus_y_detectar()
             if not virus_expandido:
@@ -86,7 +104,6 @@ class pantalla_juego(QWidget):
                 self.turno = "fin"
                 QTimer.singleShot(1000, self.pasar_nivel2)
                 return
-
         elif self.nivel == 2:
             virus_expandido = self.avanzar_virus_nivel2()
             if not virus_expandido:
@@ -94,9 +111,7 @@ class pantalla_juego(QWidget):
                 self.turno = "fin"
                 QTimer.singleShot(1000, self.pasar_nivel3)
                 return
-
         elif self.nivel == 3:
-            # Nivel 3: ...
             if not self.virus_activos:
                 self.label_turno.setText("Jugador ganador!")
                 self.turno = "fin"
@@ -109,12 +124,13 @@ class pantalla_juego(QWidget):
                 QTimer.singleShot(1000, self.mostrar_pantalla_ganador)
                 return
         
-
         self.turno = "jugador"
         self.label_turno.setText("Turno: Jugador")
         self.actualizar_tablero()
 
     def actualizar_tablero(self):
+        """Verifica toda la matriz interna y la muestra en cada botón de la pantalla
+        """
         for y in range(self.longitud):
             for x in range(self.longitud):
                 valor = self.matriz_datos[y][x]
@@ -126,8 +142,7 @@ class pantalla_juego(QWidget):
                     self.matriz_botones[y][x].setText("🦠")
     
     def avanzar_virus_y_detectar(self):
-        """
-        Avanza el virus (igual que antes) pero devuelve True si avanzó, False si no pudo.
+        """Avanza el virus pero devuelve TRUE si avanzó, FALSE si no pudo.
         """
         filas = len(self.matriz_datos)
         columnas = len(self.matriz_datos[0])
@@ -143,9 +158,7 @@ class pantalla_juego(QWidget):
         return False  # no pudo expandirse ningún virus
     
     def avanzar_virus_nivel2(self):
-        """
-        En nivel 2 hay 2 virus, se mueve sólo uno por turno:
-        selecciona aleatoriamente uno de los virus activos que pueda expandirse y lo mueve.
+        """Verifica si los virus se pueden avanzar y selecciona uno al azar para avanzar 
         """
         virus_posibles = []
         for (f, c) in self.virus_activos:
@@ -154,18 +167,18 @@ class pantalla_juego(QWidget):
                 virus_posibles.append((f, c))
     
         if not virus_posibles:
-            return False  # ninguno puede expandirse
+            return False  
     
-        # Seleccionamos uno al azar que puede avanzar
         f, c = r.choice(virus_posibles)
         vecinos = obtener_vecinos_validos(self.matriz_datos, f, c)
         nf, nc = r.choice(vecinos)
-        self.matriz_datos[nf][nc] = 1  # CAMBIAR DE 2 A 3 AQUÍ
+        self.matriz_datos[nf][nc] = 1  
         self.actualizar_virus_activos()
         return True
     
     def pasar_nivel2(self):
-        # Resetea matriz y prepara nivel 2 con 2 virus iniciales
+        """Limpia la matriz para el nivel 2
+        """
         self.nivel = 2
         self.label_nivel.setText(f"Nivel {self.nivel}")
         self.matriz_datos = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
@@ -176,6 +189,8 @@ class pantalla_juego(QWidget):
         self.actualizar_tablero()
     
     def pasar_nivel3(self):
+        """Limpia la matriz para el nivel 3
+        """
         self.nivel = 3
         self.label_nivel.setText(f"Nivel {self.nivel}")
         self.matriz_datos = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
@@ -186,9 +201,10 @@ class pantalla_juego(QWidget):
         self.actualizar_tablero()
     
     def salir_del_juego(self):
+        """Intenta guardar al archivo y cierra el juego por completo para al abrir se muestren los datos actualizados"""
         try:
-            matriz_actual = self.matriz_datos  # Ya tienes la matriz en self.matriz_datos
-            nivel_actual = self.nivel           # Ya tienes el nivel en self.nivel
+            matriz_actual = self.matriz_datos  
+            nivel_actual = self.nivel          
             longitud_actual = self.longitud
 
             guardar_partida(self.nombre_guardado, nivel_actual, longitud_actual, matriz_actual)
@@ -196,17 +212,70 @@ class pantalla_juego(QWidget):
         except Exception as e:
             print(f"Error al guardar la partida: {e}")
 
-        # Volver a pantalla_saves (índice 1 asumiendo que ahí está)
         QApplication.quit()
 
-
     def mostrar_pantalla_ganador(self):
-        ganador = pantallaGanador(self.stack)
+        """Llama a la pantalla ganador al ganar
+        """
+        ganador = pantalla_ganador(self.stack)
         self.stack.addWidget(ganador)
         self.stack.setCurrentWidget(ganador)
 
-class pantallaGanador(QWidget):
+class pantalla_multijugador_juego(QWidget):
+    def __init__(self, longitud):
+        """Datos basicos de la pantalla multijugador
+
+        Args:
+            fila (_type_): _description_
+            columna (_type_): _description_
+        """
+        super().__init__()
+        self.longitud = longitud
+        self.tablero = [[0 for _ in range(self.longitud)] for _ in range(self.longitud)]
+        self.turno = "virus"  
+        self.inicializar_ui()
+
+    def manejo_turnos_multi(self, x, y):
+        """Preparacion de turnos para los 2 jugadores
+
+        Args:
+            fila (_type_): _description_
+            col (_type_): _description_
+        """
+        if self.turno == "jugador":
+            if self.tablero[x][y] == 0:
+                self.tablero[x][y] = "muro"
+                self.turno = "virus"
+        elif self.turno == "virus":
+            if self.tablero[x][y] == 0:
+                self.tablero[x][y] = "virus"
+                self.turno = "jugador"
+        self.actualizar_tablero()
+        self.verificar_estado_juego()
+
+    def verificar_estado_juego(self):
+        """Detecta si algún jugador gano
+        """
+        movimientos_disponibles = self.obtener_movimientos_disponibles_para_virus()
+        if not movimientos_disponibles:
+            QMessageBox.information(self, "Victoria", "¡Jugador de muros ha ganado!")
+            self.close()
+        elif self.virus_gano():
+            QMessageBox.information(self, "Derrota", "¡Jugador del virus ha ganado!")
+            self.close()
+
+class pantalla_ganador(QWidget):
+    """Pantalla de ganador, se cierra despues de 3 segundos y vuelve al inicio
+
+    Args:
+        QWidget (_type_): _description_
+    """
     def __init__(self, stack):
+        """Datos básicos de la pantalla
+
+        Args:
+            stack (int): indice de la pantalla
+        """
         super().__init__()
         self.stack = stack
         self.setWindowTitle("¡Ganador!")
@@ -219,22 +288,29 @@ class pantallaGanador(QWidget):
 
         boton_volver = QPushButton("Volver al inicio")
         boton_volver.setFixedSize(200, 50)
-        boton_volver.clicked.connect(self.volver_inicio)
+        boton_volver.clicked.connect(self.inicio)
 
         layout.addWidget(label)
         layout.addWidget(boton_volver, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.setLayout(layout)
 
-    def volver_inicio(self):
+    def inicio(self):
+        """Retorna al jugador al inicio del juego
+        """
         self.stack.setCurrentIndex(0)
-        # Opcional: eliminar esta pantalla para liberar memoria si se vuelve a jugar
         self.stack.removeWidget(self)
         self.deleteLater()
 
 class pantalla_inicio(QWidget):
+    """Ventana del inicio del juego
+
+    Args:
+        QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
+    """
     def __init__(self, stack):
         super().__init__()
+        
 
         self.setFixedSize(800, 600)  # Tamaño fijo de la ventana
 
@@ -261,6 +337,11 @@ class pantalla_inicio(QWidget):
         self.boton_jugar.clicked.connect(lambda: stack.setCurrentIndex(1))
 
 class pantalla_saves(QWidget):
+    """Pantalla de saves
+
+    Args:
+        QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
+    """
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
@@ -357,6 +438,11 @@ class pantalla_saves(QWidget):
         self.stack.setCurrentIndex(2)  
 
 class pantalla_modo(QWidget):
+    """Pantalla de modos de juego
+
+    Args:
+        QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
+    """
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
@@ -393,7 +479,7 @@ class pantalla_modo(QWidget):
         # Botón modo 2
         boton_modo2 = QPushButton("Jugador VS Jugador")
         boton_modo2.setFixedSize(200, 100)
-        boton_modo2.clicked.connect(lambda: self.stack.setCurrentIndex(3))
+        boton_modo2.clicked.connect(lambda: self.stack.setCurrentIndex(5))
         boton_modo2.setStyleSheet("""
             QPushButton {
                 font-size: 16px;
@@ -428,6 +514,12 @@ class pantalla_modo(QWidget):
         self.setLayout(layout)
 
 class pantalla_longitud(QWidget):
+    """Pantalla de la longitud de la matriz
+    
+
+    Args:
+        QWidget (_type_): Clase padre, toma un estilo y caracteristicas generales de las ventanas
+    """
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
@@ -499,11 +591,11 @@ widget_inicio = pantalla_inicio(stack)
 widget_ranuras = pantalla_saves(stack)
 widget_modo = pantalla_modo(stack)
 widget_longitud = pantalla_longitud(stack)
-
 stack.addWidget(widget_inicio)  # índice 0
 stack.addWidget(widget_ranuras)  # índice 1
 stack.addWidget(widget_modo)  # índice 2
 stack.addWidget(widget_longitud)  # índice 3
+
 
 stack.setCurrentIndex(0)  # Pantalla inicial
 stack.show()
