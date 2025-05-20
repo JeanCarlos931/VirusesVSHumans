@@ -1,33 +1,102 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QLabel, QVBoxLayout,
     QGridLayout, QStackedWidget, QHBoxLayout, QSpacerItem, QSizePolicy, 
-    QLineEdit, 
+    QLineEdit,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
+from guardador import guardar_partida, cargar_partida
 import time
 import sys
+from virus import agregar_virus, avanzar_virus
+
 
 class pantalla_juego(QWidget):
-    def __init__(self):
+    def __init__(self, longitud, nivel, stack):
         super().__init__()
         self.setWindowTitle("Juego")
+        self.stack = stack
+        self.turno = "jugador"
+        self.longitud = longitud
+        self.nivel = nivel
+        self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
+
         self.matriz_botones = []
-        layout = QGridLayout()
-        for y in range(10):
+
+        # Crear layout general
+        self.layout_general = QVBoxLayout()
+
+        # Texto nivel
+        self.label_nivel = QLabel(f"Nivel {nivel}")
+        self.label_nivel.setStyleSheet("font-size: 18px;")
+        self.label_turno = QLabel("Turno: Jugador")
+        self.label_turno.setStyleSheet("font-size: 18px;")
+
+        self.boton_salir = QPushButton("Salir")
+        self.boton_salir.clicked.connect(self.salir_del_juego)
+
+        layout_superior = QHBoxLayout()
+        layout_superior.addWidget(self.label_nivel)
+        layout_superior.addWidget(self.label_turno)
+        layout_superior.addWidget(self.boton_salir)
+        self.layout_general.addLayout(layout_superior)
+
+        # Crear grilla
+        self.grid = QGridLayout()
+        for y in range(longitud):
             fila = []
-            for x in range(15):
-                boton = QPushButton("🧱")
-                boton.setFixedSize(50, 50)
-                boton.setStyleSheet("font-size: 40px;")
-                boton.clicked.connect(lambda _, px=x, py=y: self.saludar(px, py))
-                layout.addWidget(boton, y, x)
+            for x in range(longitud):
+                boton = QPushButton(" ")
+                boton.setFixedSize(40, 40)
+                boton.setStyleSheet("font-size: 24px;")
+                boton.clicked.connect(lambda _, px=x, py=y: self.colocar_muro(px, py))
+                self.grid.addWidget(boton, y, x)
                 fila.append(boton)
             self.matriz_botones.append(fila)
-        self.setLayout(layout)
 
-    def saludar(self, x, y):
-        print(f"X:{x} Y:{y}")
-        self.matriz_botones[y][x].setText("🦠")
+        self.layout_general.addLayout(self.grid)
+        self.setLayout(self.layout_general)
+
+        # Agregar virus inicial
+        agregar_virus(self.matriz_datos, nivel=nivel)
+        self.actualizar_tablero()
+
+    def colocar_muro(self, x, y):
+        if self.turno == "jugador" and self.matriz_datos[y][x] == 0:
+            self.matriz_datos[y][x] = 2
+            self.turno = "virus"
+            self.label_turno.setText("Turno: Virus")
+            self.actualizar_tablero()
+            QTimer.singleShot(500, self.turno_virus)
+
+    def turno_virus(self):
+        avanzar_virus(self.matriz_datos)
+        self.turno = "jugador"
+        self.label_turno.setText("Turno: Jugador")
+        self.actualizar_tablero()
+
+    def actualizar_tablero(self):
+        for y in range(self.longitud):
+            for x in range(self.longitud):
+                valor = self.matriz_datos[y][x]
+                if valor == 0:
+                    self.matriz_botones[y][x].setText(" ")
+                elif valor == 2:
+                    self.matriz_botones[y][x].setText("🧱")
+                elif valor == 3:
+                    self.matriz_botones[y][x].setText("🦠")
+
+    def salir_del_juego(self):
+        try:
+            guardar_partida("ranura1", self.matriz_datos, self.nivel)
+            print("Partida guardada correctamente.")
+        except Exception as e:
+            print(f"Error al guardar la partida: {e}")
+
+        if self.stack:
+            self.stack.setCurrentIndex(0)
+        else:
+            self.close()
+
 
 class pantalla_inicio(QWidget):
     def __init__(self, stack):
@@ -61,83 +130,85 @@ class pantalla_saves(QWidget):
     def __init__(self, stack):
         super().__init__()
         self.stack = stack
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.actualizar_ranuras()
 
-        layout = QVBoxLayout()
+    def actualizar_ranuras(self):
+        # Limpiar el layout por si ya fue cargado antes
+        for i in reversed(range(self.layout.count())):
+            item = self.layout.itemAt(i)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+
         label_titulo = QLabel("Seleccione la Ranura de Guardado")
         label_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label_titulo.setStyleSheet("font-size: 24px;")
+        self.layout.addWidget(label_titulo)
 
-        # Botón para volver atrás
+        for i in range(1, 4):
+            ranura = f"ranura{i}"
+            grupo_ranura = QVBoxLayout()
+            datos = None
+            try:
+                datos = cargar_partida(ranura)
+            except:
+                pass
+
+            label_ranura = QLabel(f"RANURA {i}")
+            label_ranura.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label_ranura.setStyleSheet("font-size: 18px; font-weight: bold;")
+
+            if datos:
+                nivel = datos["nivel"]
+                progreso = f"Nivel {nivel}"
+            else:
+                progreso = "Sin partida guardada"
+
+            label_progreso = QLabel(progreso)
+            label_progreso.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label_progreso.setStyleSheet("font-size: 16px;")
+
+            grupo_ranura.addWidget(label_ranura)
+            grupo_ranura.addWidget(label_progreso)
+
+            if datos:
+                btn_continuar = QPushButton("Continuar partida")
+                btn_continuar.clicked.connect(lambda _, r=ranura, d=datos: self.continuar_partida(r, d))
+                grupo_ranura.addWidget(btn_continuar)
+
+            btn_nueva = QPushButton("Comenzar nueva partida")
+            btn_nueva.clicked.connect(lambda _, r=ranura: self.nueva_partida(r))
+            grupo_ranura.addWidget(btn_nueva)
+
+            contenedor = QWidget()
+            contenedor.setLayout(grupo_ranura)
+            contenedor.setStyleSheet("border: 2px solid black; padding: 10px; margin: 10px;")
+            self.layout.addWidget(contenedor)
+
         boton_retroceder = QPushButton("Volver atrás")
-        boton_retroceder.setFixedSize(100, 50)
+        boton_retroceder.setFixedSize(120, 50)
         boton_retroceder.clicked.connect(lambda: self.stack.setCurrentIndex(0))
-        boton_retroceder.setStyleSheet("""
-            QPushButton {
-                font-size: 12px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
+        self.layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Ranuras
-        boton_saves1 = QPushButton("RANURA 1")
-        boton_saves1.setFixedSize(200, 60)
-        boton_saves1.clicked.connect(lambda: self.stack.setCurrentIndex(2))
-        boton_saves1.setStyleSheet("""
-            QPushButton {
-                font-size: 16px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
+    def continuar_partida(self, ranura, datos):
+        longitud = len(datos["matriz"])
+        nivel = datos["nivel"]
+        juego = pantalla_juego(longitud=longitud, nivel=nivel, stack=self.stack)
+        juego.matriz_datos = datos["matriz"]
+        juego.actualizar_tablero()
 
-        boton_saves2 = QPushButton("RANURA 2")
-        boton_saves2.setFixedSize(200, 60)
-        boton_saves2.clicked.connect(lambda: self.stack.setCurrentIndex(2))
-        boton_saves2.setStyleSheet("""
-            QPushButton {
-                font-size: 16px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
+        if self.stack.count() > 4:
+            viejo = self.stack.widget(4)
+            self.stack.removeWidget(viejo)
+            viejo.deleteLater()
 
-        boton_saves3 = QPushButton("RANURA 3")
-        boton_saves3.setFixedSize(200, 60)
-        boton_saves3.clicked.connect(lambda: self.stack.setCurrentIndex(2))
-        boton_saves3.setStyleSheet("""
-            QPushButton {
-                font-size: 16px; 
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
+        self.stack.addWidget(juego)
+        self.stack.setCurrentWidget(juego)
 
-        layout.addWidget(label_titulo, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        layout.addWidget(boton_saves1, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(boton_saves2, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(boton_saves3, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        layout.addWidget(boton_retroceder, alignment=Qt.AlignmentFlag.AlignCenter)
-      
-
-        espaciador = QSpacerItem(30, 200, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        layout.addSpacerItem(espaciador)
-
-        self.setLayout(layout)
+    def nueva_partida(self, ranura):
+        self.stack.setCurrentIndex(3)  # Ir a pantalla de longitud (pantalla_longitud)
 
 class pantalla_modo(QWidget):
     def __init__(self, stack):
@@ -247,13 +318,26 @@ class pantalla_longitud(QWidget):
         self.setLayout(layout)
 
     def mostrar_nombre(self):
-        nombre = self.caja_texto_longitud.text()
-        self.label.setText(f"Se seleccionó longitud: {nombre}")  # Reemplaza el texto de la etiqueta
-        time.sleep(3)
-        self.label.setText(f"Procesando mapa.")  # Reemplaza el texto de la etiqueta
-        self.label.setText(f"Procesando mapa..")  # Reemplaza el texto de la etiqueta
-        self.label.setText(f"Procesando mapa...")  # Reemplaza el texto de la etiqueta
-        self.stack.setCurrentIndex(4)
+        texto = self.caja_texto_longitud.text()
+        try:
+            longitud = int(texto)
+            if longitud <= 3 or longitud > 20:
+                self.label.setText("Introduce un número entre 4 y 20.")
+                return
+        except ValueError:
+            self.label.setText("Por favor, escribe un número válido.")
+            return
+
+        # Elimina el widget anterior del juego si existe (evitar duplicados)
+        if self.stack.count() > 4:
+            widget_anterior = self.stack.widget(4)
+            self.stack.removeWidget(widget_anterior)
+            widget_anterior.deleteLater()
+
+        # Crear nueva pantalla de juego con longitud personalizada
+        juego = pantalla_juego(longitud, nivel=1, stack=self.stack)
+        self.stack.addWidget(juego)
+        self.stack.setCurrentWidget(juego)
 
     
 
@@ -264,13 +348,11 @@ widget_inicio = pantalla_inicio(stack)
 widget_ranuras = pantalla_saves(stack)
 widget_modo = pantalla_modo(stack)
 widget_longitud = pantalla_longitud(stack)
-widget_juego = pantalla_juego()
 
 stack.addWidget(widget_inicio)  # índice 0
 stack.addWidget(widget_ranuras)  # índice 1
 stack.addWidget(widget_modo)  # índice 2
 stack.addWidget(widget_longitud)  # índice 3
-stack.addWidget(widget_juego)  # índice 4
 
 stack.setCurrentIndex(0)  # Pantalla inicial
 stack.show()

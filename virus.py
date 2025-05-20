@@ -1,3 +1,6 @@
+import random as r
+import time
+
 def agregar_virus(m: list, cantidad: int = 1, nivel: int= 1) -> None:
     """
     Agrega 'cantidad' de virus (representados con el número 9)
@@ -17,7 +20,7 @@ def agregar_virus(m: list, cantidad: int = 1, nivel: int= 1) -> None:
     if nivel == 1:
         cantidad = 1
     elif nivel == 2:
-        cantidad =+1
+        cantidad +=1
     elif nivel == 3:
         cantidad += 2
     else:
@@ -33,14 +36,25 @@ def agregar_virus(m: list, cantidad: int = 1, nivel: int= 1) -> None:
         
         pass
 
-import random as r
-import time
+def obtener_vecinos_validos(m, f, c):
+    filas = len(m)
+    columnas = len(m[0])
+    vecinos = [(f-1, c), (f+1, c), (f, c-1), (f, c+1)]
+    return [(nf, nc) for nf, nc in vecinos if 0 <= nf < filas and 0 <= nc < columnas and m[nf][nc] == 0]
 
-def mostrar_matriz(m):
-    for fila in m:
-        print(" ".join(str(celda) for celda in fila))
-    print()
+def avanzar_virus(matriz):
+    filas = len(matriz)
+    columnas = len(matriz[0])
+    virus_activados = [(f, c) for f in range(filas) for c in range(columnas) if matriz[f][c] == 3]
+    
+    for f, c in virus_activados:
+        vecinos = obtener_vecinos_validos(matriz, f, c)
+        if vecinos:
+            nf, nc = r.choice(vecinos)
+            matriz[nf][nc] = 3
+            break
 
+"""
 def movimientos(m: list) -> list:
     filas = len(m)
     columnas = len(m[0])
@@ -110,4 +124,10 @@ def movimientos(m: list) -> list:
     return m
 
 
-
+matriz= [
+    [0,0,0,0,0,],
+    [0,0,0,3,0],
+    [3,0,0,0,0]
+]
+movimientos(matriz)
+"""
