@@ -1,72 +1,90 @@
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QLabel, QVBoxLayout,
     QGridLayout, QStackedWidget, QHBoxLayout, QSpacerItem, QSizePolicy, 
-    QLineEdit, 
+    QLineEdit,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 import time
 import sys
+from virus import agregar_virus, avanzar_virus
+
 
 class pantalla_juego(QWidget):
-    def __init__(self, longitud, nivel=1, stack=None):
+    def __init__(self, longitud, nivel, stack):
         super().__init__()
         self.setWindowTitle("Juego")
+        self.stack = stack
+        self.turno = "jugador"
+        self.longitud = longitud
+        self.nivel = nivel
+        self.matriz_datos = [[0 for _ in range(longitud)] for _ in range(longitud)]
+
         self.matriz_botones = []
-        self.turno_actual = "Jugador"
-        self.stack = stack  # Para poder regresar al menú si se usa
 
-        # --- Layout principal vertical ---
-        layout_principal = QVBoxLayout()
+        # Crear layout general
+        self.layout_general = QVBoxLayout()
 
-        # Texto del nivel
-        self.label_nivel = QLabel(f"🌟 Nivel: {nivel}")
-        self.label_nivel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label_nivel.setStyleSheet("font-size: 20px;")
-        layout_principal.addWidget(self.label_nivel)
-
-        # Texto del turno
-        self.label_turno = QLabel(f"Turno: {self.turno_actual}")
-        self.label_turno.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Texto nivel
+        self.label_nivel = QLabel(f"Nivel {nivel}")
+        self.label_nivel.setStyleSheet("font-size: 18px;")
+        self.label_turno = QLabel("Turno: Jugador")
         self.label_turno.setStyleSheet("font-size: 18px;")
-        layout_principal.addWidget(self.label_turno)
 
-        # --- Tablero ---
-        layout_tablero = QGridLayout()
+        self.boton_salir = QPushButton("Salir")
+        self.boton_salir.clicked.connect(lambda: self.stack.setCurrentIndex(0))
 
+        layout_superior = QHBoxLayout()
+        layout_superior.addWidget(self.label_nivel)
+        layout_superior.addWidget(self.label_turno)
+        layout_superior.addWidget(self.boton_salir)
+        self.layout_general.addLayout(layout_superior)
+
+        # Crear grilla
+        self.grid = QGridLayout()
         for y in range(longitud):
             fila = []
             for x in range(longitud):
-                boton = QPushButton("🧱")
-                boton.setFixedSize(50, 50)
-                boton.setStyleSheet("font-size: 40px;")
-                boton.clicked.connect(lambda _, px=x, py=y: self.saludar(px, py))
-                layout_tablero.addWidget(boton, y, x)
+                boton = QPushButton(" ")
+                boton.setFixedSize(40, 40)
+                boton.setStyleSheet("font-size: 24px;")
+                boton.clicked.connect(lambda _, px=x, py=y: self.colocar_muro(px, py))
+                self.grid.addWidget(boton, y, x)
                 fila.append(boton)
             self.matriz_botones.append(fila)
 
-        for col in range(longitud):
-            layout_tablero.setColumnStretch(longitud, 1)
+        self.layout_general.addLayout(self.grid)
+        self.setLayout(self.layout_general)
 
-        contenedor_tablero = QWidget()
-        contenedor_tablero.setLayout(layout_tablero)
-        layout_principal.addWidget(contenedor_tablero, alignment=Qt.AlignmentFlag.AlignCenter)
-        # --- Botón Salir ---
-        boton_salir = QPushButton("Salir")
-        boton_salir.setFixedSize(100, 40)
-        boton_salir.setStyleSheet("font-size: 14px; border-radius: 8px;")
-        boton_salir.clicked.connect(self.salir_del_juego)
-        layout_principal.addWidget(boton_salir, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Agregar virus inicial
+        agregar_virus(self.matriz_datos, nivel=nivel)
+        self.actualizar_tablero()
 
-        self.setLayout(layout_principal)
+    def colocar_muro(self, x, y):
+        if self.turno == "jugador" and self.matriz_datos[y][x] == 0:
+            self.matriz_datos[y][x] = 2
+            self.turno = "virus"
+            self.label_turno.setText("Turno: Virus")
+            self.actualizar_tablero()
+            QTimer.singleShot(500, self.turno_virus)
 
-    def saludar(self, x, y):
-        print(f"X:{x} Y:{y}")
-        self.matriz_botones[y][x].setText("🦠")
+    def turno_virus(self):
+        avanzar_virus(self.matriz_datos)
+        self.turno = "jugador"
+        self.label_turno.setText("Turno: Jugador")
+        self.actualizar_tablero()
 
-        # Cambiar el turno
-        self.turno_actual = "Virus" if self.turno_actual == "Jugador" else "Jugador"
-        self.label_turno.setText(f"Turno: {self.turno_actual}")
+    def actualizar_tablero(self):
+        for y in range(self.longitud):
+            for x in range(self.longitud):
+                valor = self.matriz_datos[y][x]
+                if valor == 0:
+                    self.matriz_botones[y][x].setText(" ")
+                elif valor == 2:
+                    self.matriz_botones[y][x].setText("🧱")
+                elif valor == 3:
+                    self.matriz_botones[y][x].setText("🦠")
 
+    
     def salir_del_juego(self):
         if self.stack:
             self.stack.setCurrentIndex(0)  # Vuelve al menú principal
