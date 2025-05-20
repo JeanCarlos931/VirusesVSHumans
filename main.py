@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
 )
 from PyQt6.QtCore import Qt, QTimer
+from guardador import guardar_partida 
 import time
 import sys
 from virus import agregar_virus, avanzar_virus
@@ -31,7 +32,7 @@ class pantalla_juego(QWidget):
         self.label_turno.setStyleSheet("font-size: 18px;")
 
         self.boton_salir = QPushButton("Salir")
-        self.boton_salir.clicked.connect(lambda: self.stack.setCurrentIndex(0))
+        self.boton_salir.clicked.connect(self.salir_del_juego)
 
         layout_superior = QHBoxLayout()
         layout_superior.addWidget(self.label_nivel)
@@ -84,12 +85,17 @@ class pantalla_juego(QWidget):
                 elif valor == 3:
                     self.matriz_botones[y][x].setText("🦠")
 
-    
     def salir_del_juego(self):
+        try:
+            guardar_partida("ranura1", self.matriz_datos, self.nivel)
+            print("Partida guardada correctamente.")
+        except Exception as e:
+            print(f"Error al guardar la partida: {e}")
+
         if self.stack:
-            self.stack.setCurrentIndex(0)  # Vuelve al menú principal
+            self.stack.setCurrentIndex(0)
         else:
-            self.close()  # Cierra la ventana si no hay stack
+            self.close()
 
 
 class pantalla_inicio(QWidget):
@@ -314,7 +320,7 @@ class pantalla_longitud(QWidget):
         try:
             longitud = int(texto)
             if longitud <= 3 or longitud > 20:
-                self.label.setText("Introduce un número entre 1 y 20.")
+                self.label.setText("Introduce un número entre 4 y 20.")
                 return
         except ValueError:
             self.label.setText("Por favor, escribe un número válido.")
