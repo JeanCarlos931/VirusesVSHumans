@@ -235,30 +235,67 @@ class pantallaGanador(QWidget):
 class pantalla_inicio(QWidget):
     def __init__(self, stack):
         super().__init__()
+        self.stack = stack
 
-        self.setFixedSize(800, 600)  # Tamaño fijo de la ventana
+        layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Título del juego
-        self.label_titulo = QLabel("🧬 Virus Spread Game", self)
-        self.label_titulo.setStyleSheet("font-size: 40px;")
-        self.label_titulo.adjustSize()  # Ajusta el tamaño del QLabel al texto
-        self.label_titulo.move((self.width() - self.label_titulo.width()) // 2, 50)  # Centrado horizontal, 150px vertical
+        # Título
+        titulo = QLabel("🧬 Virus Spread Game")
+        titulo.setStyleSheet("font-size: 40px; font-weight: bold;")
+        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Botón cuadrado "JUGAR"
-        self.boton_jugar = QPushButton("JUGAR", self)
-        self.boton_jugar.setFixedSize(200, 100)
-        self.boton_jugar.setStyleSheet("""
-            QPushButton {
-                font-size: 30px;
-                border: 2px solid black;
-                border-radius: 10px;
-            }
-            QPushButton:hover {
-                border: 2px solid blue;
-            }
-        """)
-        self.boton_jugar.move((self.width() - 200) // 2, 300)  # Centrado horizontal, 300px vertical
-        self.boton_jugar.clicked.connect(lambda: stack.setCurrentIndex(1))
+        # Campo para nombre del guardado
+        self.input_nombre = QLineEdit()
+        self.input_nombre.setPlaceholderText("Nombre de la partida...")
+        self.input_nombre.setFixedWidth(300)
+
+        # Botón nueva partida
+        boton_nueva = QPushButton("Nueva Partida")
+        boton_nueva.setFixedSize(200, 40)
+        boton_nueva.clicked.connect(self.iniciar_nueva_partida)
+
+        # Botón cargar
+        boton_cargar = QPushButton("Cargar Partida")
+        boton_cargar.setFixedSize(200, 40)
+        boton_cargar.clicked.connect(self.cargar_partida_existente)
+
+        # Añadir widgets al layout
+        layout.addWidget(titulo)
+        layout.addSpacing(30)
+        layout.addWidget(self.input_nombre, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addSpacing(20)
+        layout.addWidget(boton_nueva, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(boton_cargar, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.setLayout(layout)
+
+    def iniciar_nueva_partida(self):
+        nombre = self.input_nombre.text().strip()
+        if not nombre:
+            print("Debes ingresar un nombre para la partida.")
+            return
+
+        pantalla = pantalla_juego(longitud=6, nivel=1, stack=self.stack, nombre_guardado=nombre)
+        self.stack.addWidget(pantalla)
+        self.stack.setCurrentWidget(pantalla)
+
+    def cargar_partida_existente(self):
+        nombre = self.input_nombre.text().strip()
+        if not nombre:
+            print("Debes ingresar un nombre de partida guardada.")
+            return
+        try:
+            matriz, nivel = cargar_partida(nombre)
+            pantalla = pantalla_juego(longitud=len(matriz), nivel=nivel, stack=self.stack, nombre_guardado=nombre)
+            pantalla.matriz_datos = matriz
+            pantalla.actualizar_virus_activos()
+            pantalla.actualizar_tablero()
+            self.stack.addWidget(pantalla)
+            self.stack.setCurrentWidget(pantalla)
+        except FileNotFoundError:
+            print(f"No se encontró una partida guardada con el nombre '{nombre}'.")
+
 
 class pantalla_saves(QWidget):
     def __init__(self, stack):
